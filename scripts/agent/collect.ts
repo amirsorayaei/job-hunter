@@ -10,10 +10,12 @@
  */
 import { classify } from "../../src/lib/agentDedupe";
 import { normUrl } from "../../src/lib/agentDedupe";
-import { isFresh, isRelevantTitle, placementOf, trackFor } from "../../src/lib/agent/filter";
+import { isFresh, isRelevantTitle, placementOf, textForScoring, titleKey, trackFor } from "../../src/lib/agent/filter";
 import type { AtsProvider } from "../../src/lib/sources/types";
 import { FEEDS, fetchBoard, type RawPosting } from "./feeds";
-import { rpc, runAgent, seenHistory } from "./lib";
+import { readState, rpc, runAgent, seenHistory, writeState } from "./lib";
+
+const DAY = 24 * 60 * 60 * 1000;
 
 const CONCURRENCY = 8;
 
@@ -92,7 +94,24 @@ void runAgent("collector", async (log) => {
   }
   const history = seenHistory();
   const verdicts = new Map([...byKey.entries()].map(([key, posting]) => [key, classify(posting, history)]));
-  const fresh = [...byKey.entries()].filter(([key]) => unknown.has(key) && verdicts.get(key) !== "duplicate");
+  const unseen = [...byKey.entries()].filter(([key]) => unknown.has(key) && verdicts.get(key) !== "duplicate");
+
+  // One job listed once per country ("... | UK | Remote", "... | Germany | Remote") is one row.
+  // Title keys are remembered for 60 days, so a copy found on a later run is dropped too.
+  const titleSeen = readState<Record<string, number>>("title-keys", {});
+  for (const [titleKeyText, at] of Object.entries(titleSeen)) if (now - at > 60 * DAY) delete titleSeen[titleKeyText];
+  const fresh: typeof unseen = [];
+  let sameJob = 0;
+  for (const entry of unseen) {
+    const keyText = titleKey(entry[1].company, entry[1].title);
+    if (titleSeen[keyText] !== undefined) {
+      sameJob++;
+      continue;
+    }
+    titleSeen[keyText] = now;
+    fresh.push(entry);
+  }
+  writeState("title-keys", titleSeen);
 
   const queued = fresh.map(([key, posting]) => ({
     key,
@@ -102,7 +121,8 @@ void runAgent("collector", async (log) => {
     url: posting.url,
     location: `${posting.location}${placementOf(posting) === "visa" ? " (visa/relocation mentioned)" : ""}`.trim(),
     source: posting.source,
-    description: posting.description,
+    // The app keeps 6,000 characters; eligibility lines from further down are moved up so they survive.
+    description: textForScoring(posting.description, 4000),
     postedAt: posting.postedAt,
     knownCompany: verdicts.get(key) === "known_company" ? true : undefined,
   }));
@@ -113,5 +133,5 @@ void runAgent("collector", async (log) => {
   }
   const frontend = queued.filter((posting) => posting.track === "frontend").length;
   const failedBoards = checks.filter((check) => check === null || !check.ok).length;
-  return `${raw.length} postings read (${companies.length} boards${failedBoards > 0 ? `, ${failedBoards} failed` : ""}; ${feedNotes.join(", ")}), ${relevant.length} relevant, ${inserted} new queued (${frontend} frontend, ${inserted - frontend} full-stack)`;
+  return `${raw.length} postings read (${companies.length} boards${failedBoards > 0 ? `, ${failedBoards} failed` : ""}; ${feedNotes.join(", ")}), ${relevant.length} relevant, ${inserted} new queued (${frontend} frontend, ${inserted - frontend} full-stack)${sameJob > 0 ? `, ${sameJob} same-job copies for other countries skipped` : ""}`;
 }, { ignoreQuiet: true });

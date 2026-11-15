@@ -154,6 +154,21 @@ export const prune = internalMutation({
   },
 });
 
+/** How many postings wait for one track and since when, so a scorer can wait for a fuller batch. */
+export const pendingSummary = internalQuery({
+  args: { track },
+  returns: v.object({ count: v.number(), oldestFoundAt: v.union(v.number(), v.null()) }),
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("postings")
+      .withIndex("by_state_and_track", (q) => q.eq("state", "pending").eq("track", args.track))
+      .take(1000);
+    let oldest: number | null = null;
+    for (const row of rows) if (oldest === null || row.foundAt < oldest) oldest = row.foundAt;
+    return { count: rows.length, oldestFoundAt: oldest };
+  },
+});
+
 /** Pending count per track, for the status panel. */
 export const pendingCounts = internalQuery({
   args: {},

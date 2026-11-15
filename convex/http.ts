@@ -84,6 +84,7 @@ const OPS: Record<string, Op> = {
   "postings.claim": { kind: "mutation", ref: internal.postings.claim },
   "postings.markScored": { kind: "mutation", ref: internal.postings.markScored },
   "postings.pendingCounts": { kind: "query", ref: internal.postings.pendingCounts },
+  "postings.pendingSummary": { kind: "query", ref: internal.postings.pendingSummary },
   "roles.ingest": { kind: "mutation", ref: internal.roles.ingest },
   "roles.claimPrep": { kind: "mutation", ref: internal.roles.claimPrep },
   "roles.failPrep": { kind: "mutation", ref: internal.roles.failPrep },

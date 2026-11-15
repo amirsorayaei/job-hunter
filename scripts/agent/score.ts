@@ -10,7 +10,7 @@
  * Results land in the Roles list; the best are prepared automatically.
  */
 import { z } from "zod";
-import { emailsIn, isIndiaRole } from "../../src/lib/agent/filter";
+import { emailsIn, isIndiaRole, textForScoring } from "../../src/lib/agent/filter";
 import { domainAcceptsMail, emptyDir, prompt, readState, rpc, runAgent, runClaude, writeState } from "./lib";
 
 type Track = "frontend" | "fullstack";
@@ -118,7 +118,8 @@ async function screen(track: Track, log: (m: string) => void, model: string): Pr
       location: posting.location,
       source: posting.source,
       postedAt: posting.postedAt,
-      text: posting.description.slice(0, 3500),
+      // The opening of the JD plus eligibility lines (citizenship, residence, hybrid...) found anywhere in it.
+      text: textForScoring(posting.description),
     }));
     const run = await runClaude({
       prompt: prompt("score", {
@@ -188,6 +189,10 @@ async function screen(track: Track, log: (m: string) => void, model: string): Pr
 const { track } = parseArgs();
 
 const SLACK_MS = 10 * 60 * 1000;
+/** Fewer postings than this wait for the next run... */
+const MIN_BATCH = 3;
+/** ...unless the oldest has already waited this long (5h50m, so the second skipped 3-hour run still scores). */
+const MAX_WAIT_MS = 6 * 3_600_000 - SLACK_MS;
 
 function screenDue(settings: { scoreEveryHours: number }): boolean {
   const last = readState<{ lastScreenAt?: number }>(`screen-${track}`, {}).lastScreenAt ?? 0;
@@ -199,6 +204,14 @@ void runAgent(
   async (log, settings) => {
     const notes: string[] = [];
     if (screenDue(settings)) {
+      // Every scoring call has a fixed cost (~15k tokens) however few postings it reads.
+      // With only one or two waiting, wait for the next run, but never longer than MAX_WAIT_MS.
+      const waiting = await rpc<{ count: number; oldestFoundAt: number | null }>("postings.pendingSummary", { track });
+      const age = waiting.oldestFoundAt === null ? 0 : Date.now() - waiting.oldestFoundAt;
+      if (waiting.count === 0) return "nothing new to score";
+      if (waiting.count < MIN_BATCH && age < MAX_WAIT_MS) {
+        return `waiting for a fuller batch: ${waiting.count} posting${waiting.count === 1 ? "" : "s"} waiting, oldest ${Math.round(age / 3_600_000)} h (scored by ${MAX_WAIT_MS / 3_600_000} h at the latest)`;
+      }
       writeState(`screen-${track}`, { lastScreenAt: Date.now() });
       const screened = await screen(track, log, settings.scoreModel);
       notes.push(`screened ${screened.scored}, ${screened.shown} new roles, ${screened.queued} auto-prepared`);

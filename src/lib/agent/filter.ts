@@ -25,9 +25,15 @@ export function isRelevantTitle(title: string): boolean {
   return true;
 }
 
-/** Frontend agent or Full-Stack agent. Anything not clearly frontend goes to Full-Stack. */
+/**
+ * Frontend agent or Full-Stack agent (owner's rule, 2026-11-15): the title decides.
+ * "Frontend" in the title → Frontend (his strongest area, and the Frontend
+ * baseline resume); "Full Stack" in the title → Full-Stack. Only titles that
+ * say neither fall back to the other hints, and anything unclear goes to Full-Stack.
+ */
 export function trackFor(title: string): Track {
   const clean = title.toLowerCase();
+  if (/front[\s-]?end/.test(clean)) return "frontend";
   if (/full[\s-]?stack/.test(clean)) return "fullstack";
   if (/front[\s-]?end|\breact\b|\bui (developer|engineer)|design engineer|web (developer|engineer)|javascript|next\.?js/.test(clean)) {
     return "frontend";
@@ -81,6 +87,64 @@ export function placementOf(input: {
   // A JD that says "remote" in its opening paragraphs, with no location given.
   if (input.location.trim() === "" && REMOTE.test(head.slice(0, 1500))) return "remote";
   return null;
+}
+
+/**
+ * Sentences that decide whether Candidate may apply at all: citizenship, clearance,
+ * residence, work authorization, sponsorship, on-site/hybrid, time zones.
+ * Employers often put them at the END of a posting or in the form questions,
+ * past what the scorer reads, so they are pulled out and shown up front.
+ */
+const ELIGIBILITY =
+  /\b(citizen(ship)?|security clearance|clearance|resid(e|es|ent|ents|ence|ency|ing)|authori[sz](ed|ation) to work|work authori[sz]ation|right to work|eligib(le|ility) to work|legally (be )?(able|eligible|authori[sz]ed)|able to work in|sponsor(ship)?|visa|relocat(e|ion)|hybrid|on-?site|in[- ]office|days a week in|time ?zones?|overlap with|(must|need to|required to) (be|live|reside) (in|within|located)|based in|located in|only (open|available|hiring) (to|in|for)|(us|u\.s\.|eu|uk)[- ]only)\b/i;
+
+export function eligibilityLines(text: string, maxChars = 900): string[] {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+|\s[•·▪]\s|\n/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length >= 12 && sentence.length <= 400);
+  const out: string[] = [];
+  let used = 0;
+  for (const sentence of sentences) {
+    if (!ELIGIBILITY.test(sentence)) continue;
+    if (out.some((line) => line === sentence)) continue;
+    if (used + sentence.length > maxChars) break;
+    out.push(sentence);
+    used += sentence.length;
+  }
+  return out;
+}
+
+/** The posting text a scorer sees: the opening of the JD plus any eligibility lines found anywhere in it. */
+export function textForScoring(description: string, openingChars = 3500): string {
+  const opening = description.slice(0, openingChars);
+  const extra = eligibilityLines(description).filter((line) => !opening.includes(line));
+  return extra.length === 0 ? opening : `${opening}\n\n[Eligibility lines from the full posting] ${extra.join(" | ")}`;
+}
+
+/**
+ * Words that only say WHERE a role is. A company that lists one job once per
+ * country ("Senior Engineer | UK | Remote", "... | Germany | Remote") gets one
+ * row, not one per country.
+ */
+const PLACE_WORD =
+  /^(remote|hybrid|on-?site|in[- ]office|anywhere|worldwide|global|emea|apac|latam|amer|americas|nasa|north america|south america|europe|eu|uk|us|usa|united states|united kingdom|canada|germany|france|spain|italy|portugal|netherlands|ireland|sweden|norway|denmark|finland|poland|czechia|czech republic|austria|switzerland|belgium|romania|greece|turkey|türkiye|turkiye|israel|uae|india|brazil|mexico|argentina|colombia|chile|australia|new zealand|japan|singapore|philippines|south africa|nigeria|kenya|egypt|london|berlin|paris|amsterdam|dublin|madrid|barcelona|lisbon|munich|stockholm|toronto|vancouver|new york|nyc|san francisco|sf|seattle|austin|boston|chicago|istanbul|warsaw|prague|de|fr|es|nl|ie|se|pl|ca|au|br|mx|tr|ch|at|be|pt|it|dk|no|fi)$/i;
+
+/** "UK", "Remote", "Remote, US", "Berlin / Remote": every part is a place word. */
+function isPlace(segment: string): boolean {
+  const parts = segment.split(/\s*[,/&]\s*|\s+or\s+/).filter((part) => part.trim() !== "");
+  return parts.length > 0 && parts.every((part) => PLACE_WORD.test(part.trim()));
+}
+
+export function titleKey(company: string, title: string): string {
+  const base = title
+    .replace(/\(([^)]*)\)/g, (match, inner: string) => (isPlace(inner.trim()) ? " " : match))
+    .split(/\s[|–—-]\s|\s[|]\s?|\s?[|]\s/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment !== "" && !isPlace(segment))
+    .join(" ");
+  return `${company.trim().toLowerCase()}::${base.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
 }
 
 /** Postings older than this are ignored when the board says when they were posted. */

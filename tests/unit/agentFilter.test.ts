@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailsIn, isFresh, isIndiaRole, isRelevantTitle, placementOf, trackFor } from "../../src/lib/agent/filter";
+import { eligibilityLines, emailsIn, isFresh, isIndiaRole, isRelevantTitle, placementOf, textForScoring, titleKey, trackFor } from "../../src/lib/agent/filter";
 
 describe("title filter", () => {
   it("keeps developer titles Candidate can hold", () => {
@@ -51,6 +51,22 @@ describe("track", () => {
     expect(trackFor("Software Engineer")).toBe("fullstack");
     expect(trackFor("Founding Engineer")).toBe("fullstack");
   });
+
+  it("follows the title: Frontend in the title is Frontend, Full Stack is Full-Stack", () => {
+    for (const title of [
+      "Software Engineer- Frontend",
+      "Senior Frontend React Engineer (Product & Design Collaboration)",
+      "Front End Engineer",
+      "Front-end Developer",
+      "Senior Software Engineer, Frontend",
+      "Full Stack Engineer (Frontend focus)",
+    ]) {
+      expect(trackFor(title), title).toBe("frontend");
+    }
+    for (const title of ["Full Stack Engineer (TypeScript/React/Node)", "Senior Full-Stack Engineer", "Fullstack Engineer", "Senior Software Engineer, Full Stack"]) {
+      expect(trackFor(title), title).toBe("fullstack");
+    }
+  });
 });
 
 describe("placement", () => {
@@ -81,6 +97,42 @@ describe("placement", () => {
     expect(isIndiaRole({ location: "Remote", title: "Frontend Engineer", description: "We have offices in London and Pune." })).toBe(false);
     expect(isIndiaRole({ location: "Remote - EU", title: "Frontend Engineer", company: "Acme" })).toBe(false);
     expect(placementOf({ ...base, location: "Remote - US", workplaceType: "remote" })).toBe("remote");
+  });
+});
+
+describe("eligibility lines", () => {
+  const filler = "We build great software with React and TypeScript. ".repeat(80);
+  it("pulls a citizenship gate from the end of a long posting into what the scorer reads", () => {
+    const text = `${filler} Due to federal government contract requirements, eligible candidates must hold United States citizenship.`;
+    const scored = textForScoring(text);
+    expect(scored).toContain("[Eligibility lines from the full posting]");
+    expect(scored).toContain("must hold United States citizenship");
+  });
+
+  it("finds residence and authorization lines", () => {
+    const lines = eligibilityLines(
+      "Great team. Please note, you must reside in the country for which you are applying. You must legally be able to work in the country. We offer snacks.",
+    );
+    expect(lines).toHaveLength(2);
+  });
+
+  it("adds nothing when the opening already holds the line or there is none", () => {
+    expect(textForScoring("Remote role. We sponsor visas. React work.")).toBe("Remote role. We sponsor visas. React work.");
+    expect(textForScoring(filler)).toBe(filler.slice(0, 3500));
+  });
+});
+
+describe("one row per job, not per country", () => {
+  const grafana = (place: string) => titleKey("Grafana Labs", `Senior Full Stack Engineer | Experimentation - Product Analytics | ${place} | Remote`);
+  it("gives the same key to the per-country copies", () => {
+    expect(new Set(["UK", "Sweden", "Spain", "Ireland", "Germany", "NASA"].map(grafana)).size).toBe(1);
+    expect(titleKey("Acme", "Frontend Engineer (Remote, US)")).toBe(titleKey("Acme", "Frontend Engineer (Canada)"));
+  });
+
+  it("keeps genuinely different roles apart", () => {
+    expect(titleKey("Acme", "Senior Engineer | AI")).not.toBe(titleKey("Acme", "Senior Engineer | Payments"));
+    expect(titleKey("Acme", "Frontend Engineer")).not.toBe(titleKey("Acme", "Full Stack Engineer"));
+    expect(titleKey("Acme", "Frontend Engineer")).not.toBe(titleKey("Other", "Frontend Engineer"));
   });
 });
 

@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { classify, normUrl } from "../../src/lib/agentDedupe";
-import { emailsIn, isIndiaRole } from "../../src/lib/agent/filter";
+import { emailsIn, isIndiaRole, trackFor } from "../../src/lib/agent/filter";
 import { domainAcceptsMail, pageText, prompt, rpc, runClaude, seenHistory } from "./lib";
 
 type Track = "frontend" | "fullstack";
@@ -119,7 +119,9 @@ export async function discover(
       }
       if (applyEmail === undefined) log(`  dropped unverified email for ${finding.company}`);
     }
-    byTrack[finding.track].push({
+    // The title decides when it says Frontend or Full Stack; the model's guess only for other titles.
+    const track: Track = /front[\s-]?end|full[\s-]?stack/i.test(finding.title) ? trackFor(finding.title) : finding.track;
+    byTrack[track].push({
       key,
       company: finding.company,
       title: finding.title,
