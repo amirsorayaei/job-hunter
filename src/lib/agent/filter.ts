@@ -40,6 +40,24 @@ const TURKEY = /\b(turkey|türkiye|turkiye|istanbul|i̇stanbul|ankara|izmir|i̇z
 const VISA =
   /\b(visa sponsorship|sponsor(ship)? (your |a |the )?(work )?visa|visa support|relocation (support|package|assistance|bonus)|we (will |can )?sponsor|blue card sponsorship|relocate (you|to))\b/i;
 
+/**
+ * India is excluded everywhere (owner's rule, 2026-11-15): roles located in
+ * India, open only to candidates there, or run from an Indian entity. Matched
+ * on location, title and company, plus explicit "India only" style wording in
+ * the description. A passing mention ("offices in London and Pune") in a long
+ * description does not count.
+ */
+const INDIA_PLACE =
+  /\b(india|indian|bharat|bangalore|bengaluru|hyderabad|pune|chennai|mumbai|bombay|new delhi|delhi|ncr|gurgaon|gurugram|noida|kolkata|ahmedabad|kochi|cochin|jaipur|chandigarh|coimbatore|indore|trivandrum|thiruvananthapuram|mysore|mysuru|vadodara|nagpur|lucknow|bhubaneswar|visakhapatnam)\b/i;
+const INDIA_ONLY =
+  /\b(india[\s-]only|only (open )?(to|for) (candidates|applicants|residents|people)? ?(based |located |residing )?in india|(candidates|applicants) (must be |should be )?(based|located|residing) in india|based (out of|in) india|within india|across india|pan[\s-]india|\bIST\b time ?zone|india standard time)\b/i;
+
+export function isIndiaRole(input: { location?: string; title?: string; company?: string; description?: string; remoteWording?: string }): boolean {
+  const where = [input.location, input.title, input.company, input.remoteWording].filter(Boolean).join(" ");
+  if (INDIA_PLACE.test(where)) return true;
+  return INDIA_ONLY.test((input.description ?? "").slice(0, 8000));
+}
+
 export type Placement = "remote" | "turkey" | "visa";
 
 /**
@@ -55,6 +73,7 @@ export function placementOf(input: {
   description: string;
 }): Placement | null {
   const where = `${input.location} ${input.title}`;
+  if (isIndiaRole(input)) return null;
   if (TURKEY.test(where)) return "turkey";
   if (input.workplaceType === "remote" || REMOTE.test(where)) return "remote";
   const head = input.description.slice(0, 6000);

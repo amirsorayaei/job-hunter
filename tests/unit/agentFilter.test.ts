@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailsIn, isFresh, isRelevantTitle, placementOf, trackFor } from "../../src/lib/agent/filter";
+import { emailsIn, isFresh, isIndiaRole, isRelevantTitle, placementOf, trackFor } from "../../src/lib/agent/filter";
 
 describe("title filter", () => {
   it("keeps developer titles Candidate can hold", () => {
@@ -67,6 +67,20 @@ describe("placement", () => {
   it("rejects on-site roles with no visa help", () => {
     expect(placementOf({ ...base, location: "London, UK", workplaceType: "onsite" })).toBeNull();
     expect(placementOf({ ...base, location: "Munich", description: "Hybrid, 3 days in the office." })).toBeNull();
+  });
+
+  it("drops India roles everywhere, even remote ones", () => {
+    expect(placementOf({ ...base, location: "Remote - India", workplaceType: "remote" })).toBeNull();
+    expect(placementOf({ ...base, location: "Bengaluru, Karnataka" })).toBeNull();
+    expect(placementOf({ ...base, location: "Remote", description: "This role is open only to candidates based in India." })).toBeNull();
+    expect(isIndiaRole({ company: "CSC Generation (Shared Services – India, Engineering)", title: "Senior Frontend Engineer" })).toBe(true);
+    expect(isIndiaRole({ remoteWording: "Open only to candidates in India" })).toBe(true);
+  });
+
+  it("keeps roles that only mention India in passing", () => {
+    expect(isIndiaRole({ location: "Remote", title: "Frontend Engineer", description: "We have offices in London and Pune." })).toBe(false);
+    expect(isIndiaRole({ location: "Remote - EU", title: "Frontend Engineer", company: "Acme" })).toBe(false);
+    expect(placementOf({ ...base, location: "Remote - US", workplaceType: "remote" })).toBe("remote");
   });
 });
 

@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { classify, normUrl } from "../../src/lib/agentDedupe";
-import { emailsIn } from "../../src/lib/agent/filter";
+import { emailsIn, isIndiaRole } from "../../src/lib/agent/filter";
 import { domainAcceptsMail, pageText, prompt, rpc, runClaude, seenHistory } from "./lib";
 
 type Track = "frontend" | "fullstack";
@@ -101,6 +101,10 @@ export async function discover(
     const verdict = classify(finding, history);
     if (!unknown.has(key) || verdict === "duplicate") {
       log(`  already seen: ${finding.company} · ${finding.title}`);
+      continue;
+    }
+    if (isIndiaRole(finding)) {
+      log(`  dropped (India): ${finding.company} · ${finding.title}`);
       continue;
     }
     let applyEmail: string | undefined;

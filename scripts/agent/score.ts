@@ -10,7 +10,7 @@
  * Results land in the Roles list; the best are prepared automatically.
  */
 import { z } from "zod";
-import { emailsIn } from "../../src/lib/agent/filter";
+import { emailsIn, isIndiaRole } from "../../src/lib/agent/filter";
 import { domainAcceptsMail, emptyDir, prompt, readState, rpc, runAgent, runClaude, writeState } from "./lib";
 
 type Track = "frontend" | "fullstack";
@@ -96,8 +96,19 @@ async function screen(track: Track, log: (m: string) => void, model: string): Pr
   let shown = 0;
   let queued = 0;
   for (let batch = 0; batch < MAX_BATCHES; batch++) {
-    const postings = await rpc<Claimed[]>("postings.claim", { track, limit: BATCH, now: Date.now() });
-    if (postings.length === 0) break;
+    const claimed = await rpc<Claimed[]>("postings.claim", { track, limit: BATCH, now: Date.now() });
+    if (claimed.length === 0) break;
+    // India is excluded outright (owner's rule): never shown to the model.
+    const india = claimed.filter((posting) => isIndiaRole(posting));
+    const postings = claimed.filter((posting) => !isIndiaRole(posting));
+    if (india.length > 0) {
+      log(`dropped ${india.length} India postings without scoring`);
+      await rpc("postings.markScored", { results: india.map((posting) => ({ key: posting.key, score: 0 })) });
+    }
+    if (postings.length === 0) {
+      if (claimed.length < BATCH) break;
+      continue;
+    }
     log(`screening ${postings.length} postings`);
 
     const input = postings.map((posting) => ({
@@ -132,6 +143,8 @@ async function screen(track: Track, log: (m: string) => void, model: string): Pr
     for (const result of parsed.data.results) {
       const posting = byKey.get(result.key);
       if (posting === undefined) continue;
+      // The model read an India-only restriction in the text: drop it.
+      if (isIndiaRole({ remoteWording: result.remoteWording })) continue;
       // The model's pick, or the one hiring address written in the posting itself.
       const inText = emailsIn(posting.description);
       const applyEmail = await verifiedEmail(result.applyEmail ?? (inText.length === 1 ? inText[0] : undefined), posting.description);
@@ -167,7 +180,7 @@ async function screen(track: Track, log: (m: string) => void, model: string): Pr
     scored += postings.length;
     shown += ingest.inserted;
     queued += ingest.autoQueued;
-    if (postings.length < BATCH) break;
+    if (claimed.length < BATCH) break;
   }
   return { scored, shown, queued };
 }

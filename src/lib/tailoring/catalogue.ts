@@ -70,6 +70,14 @@ const APPROVED_METRICS = [
   // resume-source/MASTER-RESUME-EVIDENCE.md, CONFIRMED/APPROXIMATE rows (2026-11).
   // Retired numbers (15%, 34%, 60%, 50%, 20%, 1M+) are deliberately absent.
   "10%", "40%", "30%", "400+", "500k+", "300", "400", "4m", "7+", "4+",
+  // Roomvu: "approximately 400K paid users" is APPROXIMATE/TEAM SCALE in the
+  // evidence ledger and appears in both baselines; it was missing here, so every
+  // email using the Roomvu evidence paragraph was held.
+  "400k",
+  // Levita "approximately 70% doctor share" and A.P.P "500K+ monthly menu
+  // visits" (written "about 500K" in the email paragraph): both in the ledger,
+  // both used by Prep's fixed email paragraphs, both were missing here.
+  "70%", "500k",
 ];
 
 /** Seniority the history supports. "Staff" and "Principal" are absent. */

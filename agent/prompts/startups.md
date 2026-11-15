@@ -22,7 +22,7 @@ Pre-seed, seed, or Series A; roughly under 50 people; a founding or first engine
 YC Work at a Startup (workatastartup.com) and ycombinator.com/jobs, Wellfound, startup.jobs, Hacker News (Who is hiring, and recent founder posts "we're hiring"), Show HN and Product Hunt launches from the last few weeks, recent funding announcements (seed and Series A) followed to the company's careers page, founder posts on X and LinkedIn, remote-startup lists, Indie Hackers, early-stage focused boards (Otta, Remote Rocketship, Ycombinator "Launch HN").
 
 ## Work mode
-Same policy as everywhere: any genuinely remote role anywhere counts (copy the employer's exact wording into `remoteWording`, including "US only"). On-site or hybrid counts only with visa sponsorship or relocation, or a job in Turkey. Never drop a role for its geography.
+Same policy as everywhere: any genuinely remote role anywhere counts (copy the employer's exact wording into `remoteWording`, including "US only"). On-site or hybrid counts only with visa sponsorship or relocation, or a job in Turkey. Never return India roles, or roles that explicitly exclude Turkey; apart from those two, never drop a role for its geography.
 
 ## Email only
 Return only roles where a real person can be emailed: a founder or hiring address printed on the official page, a "send your CV to" line, a founder's public contact. Put it in `applyEmail` and the page where it appears in `applyEmailSource`. Never guess or construct an address. A role with no address does not belong in your output (he applies to form roles himself).

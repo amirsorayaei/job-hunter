@@ -1,6 +1,6 @@
 # Job Hunter
 
-Automates Candidate's daily job-search routine. The dashboard and database are online
+Automates the candidate's daily job-search routine. The dashboard and database are online
 (Vercel + Convex cloud, https://job-hunter-lemon-seven.vercel.app); the agents
 run on his Mac:
 
