@@ -38,6 +38,8 @@ export const findingInput = v.object({
   whyFit: v.string(),
   gaps: v.string(),
   mustHaves: v.array(v.string()),
+  /** "form" when there is an application form; the e-mail below is then a recruiter or founder to write to as well. */
+  applyVia: v.optional(applyKind),
   applyEmail: v.optional(v.string()),
   applyEmailSource: v.optional(v.string()),
   knownCompany: v.optional(v.boolean()),
@@ -133,7 +135,8 @@ export const ingest = internalMutation({
         whyFit: finding.whyFit.slice(0, 800),
         gaps: finding.gaps.slice(0, 600),
         mustHaves: finding.mustHaves.slice(0, 12).map((item) => item.slice(0, 80)),
-        applyKind: email !== undefined ? "email" : "form",
+        // A role with a form stays a form role even when a recruiter address is known (it gets an intro e-mail).
+        applyKind: finding.applyVia ?? (email !== undefined ? "email" : "form"),
         applyEmail: email,
         applyEmailSource: email !== undefined ? finding.applyEmailSource : undefined,
         knownCompany: finding.knownCompany,
@@ -251,7 +254,7 @@ export const completePrep = internalMutation({
     folder: v.string(),
     summary: v.string(),
     email: v.optional(
-      v.object({ to: v.string(), source: v.string(), subject: v.string(), body: v.string() }),
+      v.object({ to: v.string(), source: v.string(), subject: v.string(), body: v.string(), intro: v.optional(v.boolean()) }),
     ),
     now: v.number(),
   },
@@ -285,7 +288,8 @@ export const completePrep = internalMutation({
           buildCatalogue(),
           [role.company, role.title],
         );
-        patch.applyKind = "email";
+        // An intro e-mail to a recruiter or founder goes with a form application: the role stays a form role.
+        patch.applyKind = args.email.intro === true ? "form" : "email";
         patch.applyEmail = args.email.to.trim().toLowerCase();
         patch.applyEmailSource = args.email.source;
         patch.emailSubject = args.email.subject.slice(0, 200);

@@ -289,6 +289,9 @@ export function runClaude(input: {
   ];
   if (input.schema !== undefined) args.push("--json-schema", JSON.stringify(input.schema));
   if (input.effort !== undefined) args.push("--effort", input.effort);
+  // Debugging only: CLAUDE_TRACE_FILE=<path> records every step (searches, fetches) as stream-json.
+  const trace = process.env.CLAUDE_TRACE_FILE;
+  if (trace !== undefined && trace !== "") args.splice(args.indexOf("json"), 1, "stream-json", "--verbose");
 
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE, args, { cwd: input.cwd ?? WORKSPACE, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
@@ -322,7 +325,13 @@ export function runClaude(input: {
         };
       };
       try {
-        envelope = JSON.parse(stdout) as typeof envelope;
+        if (trace !== undefined && trace !== "") {
+          writeFileSync(trace, stdout);
+          const last = stdout.trim().split("\n").reverse().find((line) => line.includes('"type":"result"'));
+          envelope = JSON.parse(last ?? "{}") as typeof envelope;
+        } else {
+          envelope = JSON.parse(stdout) as typeof envelope;
+        }
       } catch {
         reject(new Error(`claude exited ${code} without JSON output: ${stdout.slice(0, 300)}`));
         return;

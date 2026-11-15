@@ -149,7 +149,7 @@ http.route({
     ) {
       return json({ error: "Expected roleId, pdfBase64, filename, folder, summary" }, 400);
     }
-    let email: { to: string; source: string; subject: string; body: string } | undefined;
+    let email: { to: string; source: string; subject: string; body: string; intro?: boolean } | undefined;
     if (body.email !== undefined && body.email !== null) {
       const e = body.email;
       if (
@@ -161,7 +161,7 @@ http.route({
       ) {
         return json({ error: "email must have to, source, subject, body" }, 400);
       }
-      email = { to: e.to, source: e.source, subject: e.subject, body: e.body };
+      email = { to: e.to, source: e.source, subject: e.subject, body: e.body, ...(e.intro === true ? { intro: true } : {}) };
     }
     if (!/^[A-Za-z0-9._-]{1,120}\.pdf$/.test(body.filename)) {
       return json({ error: "filename must be a plain .pdf name" }, 400);

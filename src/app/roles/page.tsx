@@ -233,7 +233,7 @@ function RolesTable() {
                     </Button>
                   </>
                 )}
-                {role.stage === "ready" && role.applyKind === "email" && role.hasDraft && (
+                {role.stage === "ready" && role.hasDraft && (
                   <Button asChild size="lg" variant="outline" className="flex-1">
                     <GmailLink>
                       <Mail /> Open Gmail drafts
@@ -340,7 +340,7 @@ function RolesTable() {
                           </Button>
                         </>
                       )}
-                      {role.stage === "ready" && role.applyKind === "email" && role.hasDraft && (
+                      {role.stage === "ready" && role.hasDraft && (
                         <Button asChild size="sm" variant="outline">
                           <GmailLink>
                             <Mail /> Gmail

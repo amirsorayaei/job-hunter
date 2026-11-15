@@ -156,6 +156,42 @@ describe("preparation", () => {
     expect(role?.resumeStorageId).toBeDefined();
   });
 
+  it("keeps a form role a form role when it has a recruiter address, and drafts an intro email to it", async () => {
+    const { t } = await bootstrappedOwner();
+    await t.mutation(internal.roles.ingest, {
+      track: "frontend",
+      now: NOW,
+      findings: [finding(1, 90, { applyVia: "form", applyEmail: "Recruiter@Acme.com", applyEmailSource: "https://acme.com/team" })],
+    });
+    const stored = await roleByKey(t, "acme.com/jobs/1");
+    expect(stored?.applyKind).toBe("form");
+    expect(stored?.applyEmail).toBe("recruiter@acme.com");
+
+    const job = await t.mutation(internal.roles.claimPrep, { now: NOW });
+    expect(job?.applyKind).toBe("form");
+    expect(job?.applyEmail).toBe("recruiter@acme.com");
+    const result = await t.mutation(internal.roles.completePrep, {
+      roleId: job!.roleId,
+      storageId: await storeFakePdf(t),
+      filename: "YourName-Resume-Acme1.pdf",
+      folder: "applications/acme-1",
+      summary: "Fit: good",
+      email: {
+        to: "recruiter@acme.com",
+        source: "https://acme.com/jobs/1",
+        subject: "Senior Frontend Engineer - Your Name",
+        body: "Hi,\n\nI applied for the Senior Frontend Engineer role through your form. I build React and TypeScript apps. My resume is attached.\n\nBest,",
+        intro: true,
+      },
+      now: NOW,
+    });
+    expect(result.drafted).toBe(true);
+    const role = await roleByKey(t, "acme.com/jobs/1");
+    expect(role?.applyKind).toBe("form");
+    expect(role?.applyEmail).toBe("recruiter@acme.com");
+    expect(role?.emailBody).toContain("through your form");
+  });
+
   it("drafts a clean email but blocks one that claims a skill Candidate lacks", async () => {
     const { t } = await bootstrappedOwner();
     await t.mutation(internal.roles.ingest, {

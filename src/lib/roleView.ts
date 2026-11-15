@@ -135,7 +135,7 @@ export function nextStep(role: {
   if (role.stage === "new") return role.prepState === "failed" ? "Prep failed: retry or dismiss" : "Review: prepare or dismiss";
   if (role.stage === "preparing") return "Agent is tailoring the resume";
   if (role.stage === "ready") {
-    if (role.applyKind === "form") return "Apply on the form, then tick Applied";
+    if (role.applyKind === "form") return role.hasDraft ? "Apply on the form, then send the intro draft" : "Apply on the form, then tick Applied";
     if (role.emailError !== undefined) return "Email needs a look";
     if (role.scheduledInGmail === true) {
       return role.scheduledFor !== undefined ? `Scheduled in Gmail for ${dateTime(role.scheduledFor)}` : "Scheduled in Gmail";

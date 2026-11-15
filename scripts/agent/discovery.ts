@@ -7,8 +7,8 @@
  */
 import { z } from "zod";
 import { classify, normUrl } from "../../src/lib/agentDedupe";
-import { emailsIn, isIndiaRole, trackFor } from "../../src/lib/agent/filter";
-import { domainAcceptsMail, pageText, prompt, rpc, runClaude, seenHistory } from "./lib";
+import { emailsIn, isIndiaRole, titleKey, trackFor } from "../../src/lib/agent/filter";
+import { domainAcceptsMail, pageText, prompt, readState, rpc, runClaude, seenHistory, writeState } from "./lib";
 
 type Track = "frontend" | "fullstack";
 
@@ -23,6 +23,7 @@ const item = z.object({
   whyFit: z.string(),
   gaps: z.string(),
   mustHaves: z.array(z.string()),
+  applyVia: z.enum(["form", "email"]).optional(),
   applyEmail: z.string().optional(),
   applyEmailSource: z.string().optional(),
 });
@@ -32,9 +33,20 @@ const SCHEMA = {
   additionalProperties: false,
   required: ["findings"],
   properties: {
+    rejected: {
+      type: "array",
+      maxItems: 80,
+      description: "Roles you opened but did not return, each with a few words of reason",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["company", "title", "reason"],
+        properties: { company: { type: "string" }, title: { type: "string" }, reason: { type: "string" } },
+      },
+    },
     findings: {
       type: "array",
-      maxItems: 25,
+      maxItems: 40,
       items: {
         type: "object",
         additionalProperties: false,
@@ -50,8 +62,9 @@ const SCHEMA = {
           whyFit: { type: "string", description: "Start with the funding stage and team size" },
           gaps: { type: "string" },
           mustHaves: { type: "array", items: { type: "string" }, maxItems: 8 },
-          applyEmail: { type: "string" },
-          applyEmailSource: { type: "string", description: "URL of the official page showing the address" },
+          applyVia: { type: "string", enum: ["form", "email"], description: "form when the posting has an application form; email only when no form exists and the address is the way to apply" },
+          applyEmail: { type: "string", description: "A recruiter (best) or founder address printed on a page you opened; omit when none" },
+          applyEmailSource: { type: "string", description: "URL of the page showing the address" },
         },
       },
     },
@@ -72,7 +85,7 @@ export async function discover(
 ): Promise<string> {
   const history = seenHistory();
   const recent = history
-    .slice(-150)
+    .slice(-250)
     .map((entry) => `${entry.company ?? "?"}: ${entry.role ?? ""}`)
     .join("; ");
   const catalog = await rpc<string[]>("companies.knownNames");
@@ -80,6 +93,7 @@ export async function discover(
   const run = await runClaude({
     prompt: prompt(options.promptName, {
       CATALOG_SIZE: String(catalog.length),
+      CATALOG_NAMES: catalog.join(", "),
       PROFILE: prompt("profile"),
       FRONTEND_FOCUS: prompt("frontend"),
       FULLSTACK_FOCUS: prompt("fullstack"),
@@ -91,11 +105,18 @@ export async function discover(
     timeoutMin: 30,
     log,
   });
-  const parsed = z.object({ findings: z.array(item) }).safeParse(run.structured);
+  const parsed = z
+    .object({ findings: z.array(item), rejected: z.array(z.object({ company: z.string(), title: z.string(), reason: z.string() })).optional() })
+    .safeParse(run.structured);
   if (!parsed.success) throw new Error(`Startup output failed validation: ${parsed.error.issues[0]?.message ?? "?"}`);
+  for (const skipped of parsed.data.rejected ?? []) log(`  skipped: ${skipped.company} · ${skipped.title} · ${skipped.reason}`);
 
   const unknown = new Set(await rpc<string[]>("postings.unknownKeys", { keys: parsed.data.findings.map((f) => normUrl(f.url)) }));
   const byTrack: Record<Track, Array<Record<string, unknown>>> = { frontend: [], fullstack: [] };
+  // The collector remembers "company + title" for 60 days (one row per job, not per country); share that memory.
+  const titleSeen = readState<Record<string, number>>("title-keys", {});
+  let forms = 0;
+  let emails = 0;
   for (const finding of parsed.data.findings) {
     const key = normUrl(finding.url);
     const verdict = classify(finding, history);
@@ -107,6 +128,12 @@ export async function discover(
       log(`  dropped (India): ${finding.company} · ${finding.title}`);
       continue;
     }
+    const sameJob = titleKey(finding.company, finding.title);
+    if (titleSeen[sameJob] !== undefined) {
+      log(`  already seen (same job): ${finding.company} · ${finding.title}`);
+      continue;
+    }
+    titleSeen[sameJob] = Date.now();
     let applyEmail: string | undefined;
     let applyEmailSource: string | undefined;
     if (finding.applyEmail !== undefined) {
@@ -134,10 +161,16 @@ export async function discover(
       gaps: finding.gaps,
       mustHaves: finding.mustHaves.slice(0, 8),
       knownCompany: verdict === "known_company" ? true : undefined,
+      // "form" whenever the posting has a form (the address is then a recruiter/founder to write to as well);
+      // "email" only when there is no form and a verified address is the way to apply.
+      applyVia: finding.applyVia === "form" || applyEmail === undefined ? "form" : "email",
       ...(applyEmail !== undefined ? { applyEmail, applyEmailSource } : {}),
     });
-    log(`  ${finding.score} · ${finding.company} · ${finding.title}${applyEmail ? ` · email ${applyEmail}` : ""}`);
+    if (finding.applyVia === "form" || applyEmail === undefined) forms++;
+    else emails++;
+    log(`  ${finding.score} · ${finding.company} · ${finding.title} · ${finding.applyVia === "form" || applyEmail === undefined ? "form" : "email"}${applyEmail ? ` · contact ${applyEmail}` : ""}`);
   }
+  writeState("title-keys", titleSeen);
   let inserted = 0;
   let queued = 0;
   for (const track of ["frontend", "fullstack"] as const) {
@@ -146,5 +179,5 @@ export async function discover(
     inserted += result.inserted;
     queued += result.autoQueued;
   }
-  return `${parsed.data.findings.length} found, ${inserted} new roles, ${queued} auto-prepared`;
+  return `${parsed.data.findings.length} found (${forms} form, ${emails} email only), ${inserted} new roles, ${queued} auto-prepared`;
 }

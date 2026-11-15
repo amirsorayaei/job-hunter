@@ -172,7 +172,11 @@ export function RoleDrawer({ roleId, onClose }: { roleId: Id<"roles"> | null; on
                     {WORK_MODE_LABEL[role.workMode]} · <span className="text-muted-foreground">{role.remoteWording}</span>
                   </Row>
                   <Row label="Apply by">
-                    {role.applyKind === "email" ? `Email to ${role.applyEmail ?? "?"}` : "Form on the posting"}
+                    {role.applyKind === "email"
+                      ? `Email to ${role.applyEmail ?? "?"}`
+                      : role.applyEmail !== undefined
+                        ? `Form on the posting, plus an intro email to ${role.applyEmail}`
+                        : "Form on the posting"}
                   </Row>
                   <Row label="Found">{dateTime(role.foundAt)} via {role.source}</Row>
                   {role.appliedAt !== undefined && <Row label="Applied">{dateTime(role.appliedAt)}</Row>}
@@ -217,7 +221,7 @@ export function RoleDrawer({ roleId, onClose }: { roleId: Id<"roles"> | null; on
               )}
 
               {data?.emailBody !== undefined && (
-                <Block title="Email">
+                <Block title={role.applyKind === "form" ? "Intro email (send after you apply on the form)" : "Email"}>
                   {role.emailError !== undefined && (
                     <div className="flex flex-col gap-2 rounded-md bg-amber-500/10 p-3 text-xs text-amber-300">
                       <p>{role.emailError}</p>

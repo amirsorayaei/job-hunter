@@ -206,11 +206,20 @@ async function prepare(job: Job, log: (m: string) => void, model: string): Promi
     ].join("\n"),
   );
 
-  const candidates = [...new Set([...(job.applyEmail !== undefined ? [job.applyEmail.toLowerCase()] : []), ...candidateRecipients(html)])];
+  // A role with a form gets an INTRO e-mail to a recruiter or founder (he applies on the form himself and sends it after);
+  // a role without a form gets the application e-mail. Addresses found at discovery were already verified against a page.
+  const intro = job.applyKind === "form";
+  const known = job.applyEmail?.toLowerCase();
+  const candidates = [...new Set([...(known !== undefined ? [known] : []), ...candidateRecipients(html)])];
   const recipientRule =
     candidates.length > 0
-      ? `set \`recipient\` to one of these addresses, found on the posting: ${candidates.join(", ")}, the one that takes applications (null if none of them does). Never any other address.`
+      ? intro
+        ? `set \`recipient\` to ${known !== undefined ? `${known} (a recruiter or founder address found for this role)` : `the best of these addresses found on the posting: ${candidates.join(", ")} (a recruiter first, then a founder; null if none is a real person or hiring inbox)`}. Never any other address.`
+        : `set \`recipient\` to one of these addresses, found on the posting: ${candidates.join(", ")}, the one that takes applications (null if none of them does). Never any other address.`
       : "`recipient` and `email` are always null: no application address was found, he applies through the form.";
+  const emailStyle = intro
+    ? "This is an INTRO e-mail, not the application: he applies through the form on the posting and sends this note to the recruiter or founder after, so they look out for his application. Write 80 to 140 words in his voice: say he applied for the role through the form, one concrete reason this role caught his eye taken from the JD, the one or two strongest matching facts from the ledger, an honest gap only if the JD requires something he lacks, and that he would be glad to talk. It reads like a short cover letter, not a form letter."
+    : "This e-mail IS the application (90 to 160 words): it opens from a concrete before-state, says what he built that matches, names one honest gap if the JD requires something he lacks, and ends by saying the resume is attached.";
 
   const role = [
     `- Company: ${job.company}`,
@@ -254,6 +263,7 @@ async function prepare(job: Job, log: (m: string) => void, model: string): Promi
       URL: job.url,
       RENDER_CHECK: RENDER_CHECK,
       RECIPIENT_RULE: recipientRule,
+      EMAIL_STYLE: emailStyle,
       EMAIL_EXAMPLE:
         candidates.length > 0 && existsSync(join(WORKSPACE, example))
           ? `\n\nTone exemplar (${example}):\n\n${read(example).slice(0, 10_000)}`
@@ -309,16 +319,19 @@ async function prepare(job: Job, log: (m: string) => void, model: string): Promi
   if (problem !== undefined) throw new Error(`Resume check failed: ${problem}`);
 
   const notes: string[] = [];
-  let email: { to: string; source: string; subject: string; body: string } | null = null;
+  let email: { to: string; source: string; subject: string; body: string; intro?: boolean } | null = null;
   if (result.recipient !== null && result.email !== null) {
     const to = result.recipient.trim().toLowerCase();
     if (!candidates.includes(to)) {
-      notes.push(`email not drafted: ${to} was not one of the addresses found on the posting`);
+      notes.push(`email not drafted: ${to} was not one of the addresses found for this role`);
     } else if (/—/.test(result.email.body)) {
       notes.push("email not drafted: it contained an em-dash");
     } else {
-      const source = await verifyRecipient(to, [job.url], log);
-      if (source !== undefined) email = { to, source, subject: result.email.subject.trim(), body: result.email.body.trim() };
+      // An address stored with the role was verified against a page when it was found; the rest must be on the posting.
+      const source = to === known ? ((await domainAcceptsMail(to)) ? job.url : undefined) : await verifyRecipient(to, [job.url], log);
+      if (source !== undefined) {
+        email = { to, source, subject: result.email.subject.trim(), body: result.email.body.trim(), ...(intro ? { intro: true } : {}) };
+      }
     }
   }
 
@@ -332,7 +345,11 @@ async function prepare(job: Job, log: (m: string) => void, model: string): Promi
     result.missing.length > 0 ? `Missing (not claimed): ${result.missing.join(", ")}` : "",
     result.notes.trim() !== "" ? `Notes: ${result.notes.trim()}` : "",
     ...notes,
-    email !== null ? `Email to ${email.to} (address seen on ${email.source})` : "No verified email address: apply through the form",
+    email !== null
+      ? `${intro ? "Intro email" : "Email"} to ${email.to} (address seen on ${email.source})`
+      : intro
+        ? "Apply through the form (no recruiter or founder address found)"
+        : "No verified email address: apply through the form",
   ]
     .filter(Boolean)
     .join("\n");
