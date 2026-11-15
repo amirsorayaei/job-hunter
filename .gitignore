@@ -1,0 +1,95 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Job Hunter: never commit real workspace data, secrets, or local deployments
+/data/import-preview/
+/data/exports/
+/.convex/
+.env
+.env.*
+!.env.example
+/renderer-tmp/
+/backups/
+.auth-keys.json
+.bootstrap-secret.local.txt
+
+.venv-renderer/
+__pycache__/
+.renderer-secret.local.txt
+.renderer-secret.prod.local.txt
+
+# End-to-end harness
+/.e2e.json
+/playwright-report/
+/test-results/
+
+/.bootstrap-secret.prod.local.txt
+
+/.preview-env.local.json
+
+# Playwright MCP screenshots
+/.playwright-mcp/
+
+# Written by pnpm help:screenshots; regenerated on every run.
+.help-capture.json
+
+# Nightly agent run logs
+agent/logs/
+/.owner-login.local.txt
+/agent/state/
+
+# --- secrets and private data: never commit ---
+.env*
+*.local.txt
+*.local.json
+.e2e.json
+.help-capture.json
+.claude/
+.agents/
+graphify-out/
+agent/logs/*
+agent/state/*
+!agent/logs/.gitkeep
+!agent/state/.gitkeep
+agent/seen-seed.json
+windows/
+__pycache__/

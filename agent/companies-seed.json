@@ -1,0 +1,172 @@
+[
+ {
+  "name": "Dash0",
+  "provider": "ashby",
+  "slug": "dash0"
+ },
+ {
+  "name": "Five9",
+  "provider": "greenhouse",
+  "slug": "five9"
+ },
+ {
+  "name": "SIXT",
+  "provider": "smartrecruiters",
+  "slug": "sixt"
+ },
+ {
+  "name": "Trivelta",
+  "provider": "greenhouse",
+  "slug": "trivelta"
+ },
+ {
+  "name": "SplitMetrics",
+  "provider": "ashby",
+  "slug": "splitmetrics"
+ },
+ {
+  "name": "coolblue",
+  "provider": "smartrecruiters",
+  "slug": "coolblue"
+ },
+ {
+  "name": "Monzo",
+  "provider": "greenhouse",
+  "slug": "monzo"
+ },
+ {
+  "name": "Doctolib",
+  "provider": "greenhouse",
+  "slug": "doctolib"
+ },
+ {
+  "name": "Wolt",
+  "provider": "greenhouse",
+  "slug": "wolt"
+ },
+ {
+  "name": "Spotify",
+  "provider": "lever",
+  "slug": "spotify"
+ },
+ {
+  "name": "Contentful",
+  "provider": "greenhouse",
+  "slug": "contentful"
+ },
+ {
+  "name": "Babbel",
+  "provider": "ashby",
+  "slug": "babbel"
+ },
+ {
+  "name": "Sportradar",
+  "provider": "smartrecruiters",
+  "slug": "sportradar"
+ },
+ {
+  "name": "Check24",
+  "provider": "smartrecruiters",
+  "slug": "check24"
+ },
+ {
+  "name": "Trade Republic",
+  "provider": "greenhouse",
+  "slug": "traderepublic"
+ },
+ {
+  "name": "innoscripta",
+  "provider": "personio",
+  "slug": "innoscripta"
+ },
+ {
+  "name": "Scout24",
+  "provider": "greenhouse",
+  "slug": "scout24"
+ },
+ {
+  "name": "Delivery Hero",
+  "provider": "smartrecruiters",
+  "slug": "deliveryhero"
+ },
+ {
+  "name": "Personio",
+  "provider": "recruitee",
+  "slug": "personio"
+ },
+ {
+  "name": "HelloFresh",
+  "provider": "greenhouse",
+  "slug": "hellofresh"
+ },
+ {
+  "name": "Nearfield Instruments",
+  "provider": "recruitee",
+  "slug": "nearfieldinstruments"
+ },
+ {
+  "name": "d\u00e9 VakantieDiscounter",
+  "provider": "recruitee",
+  "slug": "werkenbij"
+ },
+ {
+  "name": "AIHR",
+  "provider": "personio",
+  "slug": "aihr"
+ },
+ {
+  "name": "DataChef",
+  "provider": "smartrecruiters",
+  "slug": "datachef"
+ },
+ {
+  "name": "Code Nomads",
+  "provider": "personio",
+  "slug": "code"
+ },
+ {
+  "name": "iO",
+  "provider": "smartrecruiters",
+  "slug": "iodigital"
+ },
+ {
+  "name": "Flow Traders",
+  "provider": "greenhouse",
+  "slug": "flowtraders"
+ },
+ {
+  "name": "Picnic",
+  "provider": "smartrecruiters",
+  "slug": "picnic"
+ },
+ {
+  "name": "Catawiki",
+  "provider": "greenhouse",
+  "slug": "catawiki"
+ },
+ {
+  "name": "bol.com",
+  "provider": "greenhouse",
+  "slug": "bolcom"
+ },
+ {
+  "name": "bunq",
+  "provider": "recruitee",
+  "slug": "bunq"
+ },
+ {
+  "name": "Bitvavo",
+  "provider": "ashby",
+  "slug": "bitvavo"
+ },
+ {
+  "name": "Mollie",
+  "provider": "ashby",
+  "slug": "mollie"
+ },
+ {
+  "name": "Adyen",
+  "provider": "greenhouse",
+  "slug": "adyen"
+ }
+]

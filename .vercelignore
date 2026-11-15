@@ -1,0 +1,12 @@
+# Never upload personal data, local databases, logs or secrets.
+backups
+data
+.convex
+agent
+scripts
+tests
+*.local.txt
+.env*
+.preview-env.local.json
+.e2e.json
+.help-capture.json
